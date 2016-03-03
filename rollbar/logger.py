@@ -75,8 +75,8 @@ class RollbarHandler(logging.Handler):
 
         exc_info = record.exc_info
 
-        # use the original message, not the formatted one
-        message = record.msg
+        # use the formatted message, not the message template
+        message = record.message
         extra_data = {
             'args': record.args,
             'record': {
