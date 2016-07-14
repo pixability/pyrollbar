@@ -76,6 +76,9 @@ class RollbarHandler(logging.Handler):
         exc_info = record.exc_info
 
         # use the formatted message, not the message template
+        if not hasattr(record, 'message'):
+            return
+
         message = record.message
         extra_data = {
             'args': record.args,
