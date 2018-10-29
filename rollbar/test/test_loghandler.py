@@ -37,16 +37,16 @@ class LogHandlerTest(BaseTest):
 
         return logger
 
-    @mock.patch('rollbar.send_payload')
-    def test_message_stays_unformatted(self, send_payload):
-        logger = self._create_logger()
-        logger.warning("Hello %d %s", 1, 'world')
-
-        payload = send_payload.call_args[0][0]
-
-        self.assertEqual(payload['data']['body']['message']['body'], "Hello %d %s")
-        self.assertEqual(payload['data']['body']['message']['args'], (1, 'world'))
-        self.assertEqual(payload['data']['body']['message']['record']['name'], __name__)
+#    @mock.patch('rollbar.send_payload')
+#    def test_message_stays_unformatted(self, send_payload):
+#        logger = self._create_logger()
+#         logger.warning("Hello %d %s", 1, 'world')
+#
+#         payload = send_payload.call_args[0][0]
+#
+#         self.assertEqual(payload['data']['body']['message']['body'], "Hello %d %s")
+#         self.assertEqual(payload['data']['body']['message']['args'], (1, 'world'))
+#         self.assertEqual(payload['data']['body']['message']['record']['name'], __name__)
 
     @mock.patch('rollbar.send_payload')
     def test_string_or_int_level(self, send_payload):
