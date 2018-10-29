@@ -26,13 +26,7 @@ class ScrubUrlTransformTest(BaseTest):
                                      scrub_password=scrub_password,
                                      redact_char=redact_char,
                                      randomize_len=False)
-        result = transforms.transform(start, [scrubber])
-
-        """
-        print(start)
-        print(result)
-        print(expected)
-        """
+        result = transforms.transform(start, scrubber)
 
         if not skip_id_check:
             self.assertNotEqual(id(result), id(expected))
@@ -49,7 +43,7 @@ class ScrubUrlTransformTest(BaseTest):
             url2 = '//%s' % url2
 
         parsed_urls = map(urlparse, (url1, url2))
-        qs_params = map(lambda x: parse_qs(x.query), parsed_urls)
+        qs_params = map(lambda x: parse_qs(x.query, keep_blank_values=True), parsed_urls)
         num_params = map(len, qs_params)
         param_names = map(lambda x: set(x.keys()), qs_params)
 
@@ -116,18 +110,25 @@ class ScrubUrlTransformTest(BaseTest):
         expected = obj.replace('secr3t', '------').replace('secret', '------')
         self._assertScrubbed(['password'], obj, expected)
 
+    def test_keep_blank_url_params(self):
+        obj = 'http://foo.com/asdf?foo=bar&baz='
+        expected = obj
+        self._assertScrubbed(['password'], obj, expected, skip_id_check=True)
+
     def test_scrub_dict_val_isnt_string(self):
 
-        # This link will *not* be scrubbed because the value isn't a string or bytes
+        url = 'cory:secr3t@foo.com/asdf?password=secret&clear=text'
+
+        # Every string which is a URL should be scrubbed
         obj = {
-            'url': ['cory:secr3t@foo.com/asdf?password=secret&clear=text']
+            'url': [url]
         }
 
         scrubber = ScrubUrlTransform(suffixes=[('url',)], params_to_scrub=['password'], randomize_len=False)
-        result = transforms.transform(obj, [scrubber])
+        result = transforms.transform(obj, scrubber)
 
-        expected = copy.deepcopy(obj)
-        self.assertDictEqual(expected, result)
+        expected = url.replace('secr3t', '------').replace('secret', '------')
+        self._assertScrubbed(['password'], result['url'][0], expected)
 
     def test_scrub_dict_nested_key_match_with_circular_ref(self):
         # If a URL is a circular reference then let's make sure to
@@ -139,7 +140,7 @@ class ScrubUrlTransformTest(BaseTest):
         }
 
         scrubber = ScrubUrlTransform(suffixes=[('url',), ('link',)], params_to_scrub=['password'], randomize_len=False)
-        result = transforms.transform(obj, [scrubber])
+        result = transforms.transform(obj, scrubber)
 
         self.assertNotIn('secr3t', result['url'][0]['link'])
         self.assertNotIn('secret', result['url'][0]['link'])

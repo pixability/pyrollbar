@@ -1,9 +1,146 @@
 # Change Log
 
+The change log has moved to this repo's [GitHub Releases Page](https://github.com/rollbar/pyrollbar/releases).
+
+**0.14.0**
+
+- Create the configuration options, `capture_username` and `capture_email`. Prior to this release,
+  if we gather person data automatically, we would try to capture the id, email, and username.
+  Starting with this release by default we will only capture the id. If you set `capture_username`
+  to `True` then we will also attempt to capture the username. Similarly for `capture_email` with
+  the email. (See [#262](https://github.com/rollbar/pyrollbar/pull/262))
+- Create the configuration option `capture_ip`. This can take one of three values: `True`,
+  `'anonymize'`, or `False`. This controls how we handle IP addresses that are captured from
+  requests. If `True`, then we will send the full IP address. This is the current behaviour and the
+  default. If set to the string `'anonymize'` which is also available as the constant `ANONYMIZE` on
+  the `rollbar` module, we will mask out the least significant bits of the IP address. If set to
+  `False`, then we will not capture the IP address. (See [#262](https://github.com/rollbar/pyrollbar/pull/262))
+- Fix `request.files_keys` for Flask [#263](https://github.com/rollbar/pyrollbar/pull/263)
+- If you call `init` multiple times we will update the settings at each call. Prior to
+  this release we emitted a warning and did not update settings. [#259](https://github.com/rollbar/pyrollbar/pull/259)
+- Better Tornado support [#256](https://github.com/rollbar/pyrollbar/pull/256)
+
+**0.13.18**
+
+- See Release Notes
+
+**0.13.17**
+
+- Fix deprecation warning related to Logging.warn
+- Fix bug where non-copyable objects could cause an exception if they end up trying to get passed to
+  one of the logging methods.
+- Fix bug where both `trace` and `trace_chain` could appear in the final payload, which is not
+  allowed by the API.
+
+**0.13.16**
+
+- Fix PyPI documentation
+
+**0.13.15**
+
+- Fix shortener issue for Python 3
+
+**0.13.14**
+
+- Fix bug that caused some payload objects to be turned into the wrong type when
+shortening is applied. This would lead to API rejections. See [#200](https://github.com/rollbar/pyrollbar/pull/200)
+- Add `suppress_reinit_warning` option if you want to allow calling init twice. See [#198](https://github.com/rollbar/pyrollbar/pull/198)
+- Pass through keyword arguments from the logging handler to the underling Rollbar init call. See
+  [#203](https://github.com/rollbar/pyrollbar/pull/203)
+
+**0.13.13**
+
+- Add support for AWS Lambda. See [#191](https://github.com/rollbar/pyrollbar/pull/191)
+
+**0.13.12**
+
+- Remove the Django request body from the payload as it can contain sensitive data. See [#174](https://github.com/rollbar/pyrollbar/pull/174)
+- Allow users to shorten arbitrary parts of the payload. See [#173](https://github.com/rollbar/pyrollbar/pull/173)
+- Fix a Django deprecation warning. See [#165](https://github.com/rollbar/pyrollbar/pull/165)
+
+**0.13.11**
+
+- Handle environments where `sys.argv` does not exist. See [#131](https://github.com/rollbar/pyrollbar/pull/131)
+
+**0.13.10**
+
+- Gather request method from WebOb requests. See [#152](https://github.com/rollbar/pyrollbar/pull/152)
+
+**0.13.9**
+
+- Change `_check_config()` to deal with agent handler. See [#147](https://github.com/rollbar/pyrollbar/pull/147)
+- Fix settings values not being booleans in Pyramid. See [#150](https://github.com/rollbar/pyrollbar/pull/150)
+
+**0.13.8**
+
+- Fix regression from 0.13.7. See [#141](https://github.com/rollbar/pyrollbar/pull/141)
+
+**0.13.7**
+
+- Update Django middleware to support Django 1.10+. See [#138](https://github.com/rollbar/pyrollbar/pull/138)
+
+**0.13.6**
+
+- Fixed a referenced before assignment in the failsafe. See [#136](https://github.com/rollbar/pyrollbar/pull/136)
+
+**0.13.5**
+
+- Fixed record message formatting issues breaking the log handler's history. See [#135](https://github.com/rollbar/pyrollbar/pull/135)
+
+**0.13.4**
+
+- Fixed failsafe handling for payloads that are too large. See [#133](https://github.com/rollbar/pyrollbar/pull/133)
+
+**0.13.3**
+
+- Improved handling of Enums. See [#121](https://github.com/rollbar/pyrollbar/pull/121)
+
+**0.13.2**
+
+- Improved handling of Nan and (Negative)Infinity. See [#117](https://github.com/rollbar/pyrollbar/pull/117)
+- RollbarHandler now ignores log records from Rollbar. See [#118](https://github.com/rollbar/pyrollbar/pull/118)
+
+**0.13.1**
+
+- Failsafe handling for payloads that are too large. See [#116](https://github.com/rollbar/pyrollbar/pull/116)
+  - Failsafe Behavior
+    - Log an error containing the original payload and the UUID from it
+    - Send a new payload to Rollbar with the custom attribute containing the UUID and host from the original payload
+
+**0.13.0**
+
+- Frame payload refactor and varargs scrubbing. See [#113](https://github.com/rollbar/pyrollbar/pull/113)
+  - Frame Payload Changes
+    - remove args and kwargs
+    - add argspec as the list of argument names to the function call
+    - add varargspec as the name of the list containing the arbitrary unnamed positional arguments to the function call if any exist
+    - add keywordspec as the name of the object containing the arbitrary keyword arguments to the function call if any exist
+  - Other Changes:
+    - Arguments with default values are no longer removed from args and placed into kwargs
+    - varargs are now scrubbable and scrubbed by default
+- Switched to using a Session object to perform HTTPS requests to optimize for keepalive connections. See [#114](https://github.com/rollbar/pyrollbar/pull/114)
+
+**0.12.1**
+
+- Keep blank values from request query strings when scrubbing URLs. See [#110](https://github.com/rollbar/pyrollbar/pull/110)
+
+**0.12.0**
+
+- Fix and update Twisted support. See [#109](https://github.com/rollbar/pyrollbar/pull/109)
+  - **Breaking Changes**: [treq](https://github.com/twisted/treq) is now required for using Twisted with pyrollbar.
+
+**0.11.6**
+
+- Improve object handling for SQLAlchemy. See [#108](https://github.com/rollbar/pyrollbar/pull/108)
+
+**0.11.5**
+
+- Fixed a bug when custom `__repr__()` calls resulted in an exception being thrown. See [#102](https://github.com/rollbar/pyrollbar/pull/102)
+
 **0.11.4**
 
-- revert changes from 0.11.3 since they ended-up having the unintended side effect by that exceptions messages weren't processing as expected.
-- update settings in init first so that custom scrub_fields entries are handled correctly
+- Revert changes from 0.11.3 since they ended-up having the unintended side effect by that exceptions messages weren't processing as expected.
+- Update settings in init first so that custom scrub_fields entries are handled correctly
 
 **0.11.3**
 

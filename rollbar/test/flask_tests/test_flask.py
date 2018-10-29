@@ -37,13 +37,6 @@ def create_app():
     def cause_error():
         raise Exception("Uh oh")
 
-    @app.before_first_request
-    def init_rollbar():
-        rollbar.init(TOKEN, 'flasktest',
-                     root=os.path.dirname(os.path.realpath(__file__)),
-                     allow_logging_basic_config=True)
-        got_request_exception.connect(rollbar.contrib.flask.report_exception, app)
-
     class CustomRequest(Request):
         @property
         def rollbar_person(self):
@@ -53,11 +46,21 @@ def create_app():
 
     return app
 
+def init_rollbar(app):
+    from flask import got_request_exception
+    rollbar.init(TOKEN, 'flasktest',
+                 root=os.path.dirname(os.path.realpath(__file__)),
+                 allow_logging_basic_config=True,
+                 capture_email=True,
+                 capture_username=True)
+    got_request_exception.connect(rollbar.contrib.flask.report_exception, app)
+
 if ALLOWED_PYTHON_VERSION and FLASK_INSTALLED:
     class FlaskTest(BaseTest):
         def setUp(self):
             super(FlaskTest, self).setUp()
             self.app = create_app()
+            init_rollbar(self.app)
             self.client = self.app.test_client()
 
         def test_index(self):
@@ -82,7 +85,7 @@ if ALLOWED_PYTHON_VERSION and FLASK_INSTALLED:
             self.assertEqual(resp.status_code, 500)
 
             self.assertEqual(send_payload.called, True)
-            payload = json.loads(send_payload.call_args[0][0])
+            payload = send_payload.call_args[0][0]
             data = payload['data']
 
             self.assertIn('body', data)
@@ -110,7 +113,7 @@ if ALLOWED_PYTHON_VERSION and FLASK_INSTALLED:
             self.assertEqual(resp.status_code, 500)
 
             self.assertEqual(send_payload.called, True)
-            payload = json.loads(send_payload.call_args[0][0])
+            payload = send_payload.call_args[0][0]
             data = payload['data']
 
             self.assertIn('body', data)
@@ -126,3 +129,34 @@ if ALLOWED_PYTHON_VERSION and FLASK_INSTALLED:
             self.assertEqual(data['request']['body'], json_body)
             self.assertEqual(data['request']['user_ip'], '5.6.7.8')
             self.assertEqual(data['request']['method'], 'POST')
+
+        @mock.patch('rollbar.send_payload')
+        def test_uncaught_no_username_no_email(self, send_payload):
+            rollbar.SETTINGS['capture_email'] = False
+            rollbar.SETTINGS['capture_username'] = False
+
+            resp = self.client.get('/cause_error?foo=bar',
+                headers={'X-Real-Ip': '1.2.3.4', 'User-Agent': 'Flask Test'})
+            self.assertEqual(resp.status_code, 500)
+
+            self.assertEqual(send_payload.called, True)
+            payload = send_payload.call_args[0][0]
+            data = payload['data']
+
+            self.assertIn('body', data)
+            self.assertEqual(data['body']['trace']['exception']['class'], 'Exception')
+            self.assertStringEqual(data['body']['trace']['exception']['message'], 'Uh oh')
+
+            self.assertIn('person', data)
+            self.assertDictEqual(data['person'],
+                {'id': '123', 'username': None, 'email': None})
+
+            self.assertIn('request', data)
+            self.assertEqual(data['request']['url'], 'http://localhost/cause_error?foo=bar')
+            self.assertDictEqual(data['request']['GET'], {'foo': ['bar']})
+            self.assertEqual(data['request']['user_ip'], '1.2.3.4')
+            self.assertEqual(data['request']['method'], 'GET')
+            self.assertEqual(data['request']['headers']['User-Agent'], 'Flask Test')
+
+            rollbar.SETTINGS['capture_email'] = True
+            rollbar.SETTINGS['capture_username'] = True

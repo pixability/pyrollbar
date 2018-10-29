@@ -1,7 +1,7 @@
 import collections
 import base64
 import copy
-import math
+import enum
 
 from rollbar.lib import transforms, python_major_version
 from rollbar.lib.transforms.serializable import SerializableTransform
@@ -26,7 +26,7 @@ undecodable_repr = '<Undecodable type:(%s) base64:(%s)>' % (binary_type_name, in
 class SerializableTransformTest(BaseTest):
     def _assertSerialized(self, start, expected, safe_repr=True, whitelist=None, skip_id_check=False):
         serializable = SerializableTransform(safe_repr=safe_repr, whitelist_types=whitelist)
-        result = transforms.transform(start, [serializable])
+        result = transforms.transform(start, serializable)
 
         """
         #print start
@@ -56,6 +56,42 @@ class SerializableTransformTest(BaseTest):
         expected = copy.deepcopy(start)
         self._assertSerialized(start, expected)
 
+    def test_enum(self):
+        class EnumTest(enum.Enum):
+            one = 1
+            two = 2
+
+        start = EnumTest.one
+        expected = "<enum 'EnumTest'>"
+        self._assertSerialized(start, expected)
+
+    def test_enum_no_safe_repr(self):
+        class EnumTest(enum.Enum):
+            one = 1
+            two = 2
+
+        start = EnumTest.one
+        expected = '<EnumTest.one: 1>'
+        self._assertSerialized(start, expected, safe_repr=False)
+
+    def test_int_enum(self):
+        class EnumTest(enum.IntEnum):
+            one = 1
+            two = 2
+
+        start = EnumTest.one
+        expected = "<enum 'EnumTest'>"
+        self._assertSerialized(start, expected)
+
+    def test_int_enum_no_safe_repr(self):
+        class EnumTest(enum.IntEnum):
+            one = 1
+            two = 2
+
+        start = EnumTest.one
+        expected = '<EnumTest.one: 1>'
+        self._assertSerialized(start, expected, safe_repr=False)
+
     def test_encode_dict_with_invalid_utf8(self):
         start = {
             'invalid': invalid
@@ -79,26 +115,25 @@ class SerializableTransformTest(BaseTest):
         expected = 3.14
         self._assertSerialized(start, expected, skip_id_check=True)
 
+    def test_encode_float_nan(self):
+        start = float('nan')
+        expected = '<NaN>'
+        self._assertSerialized(start, expected, skip_id_check=True)
+
+    def test_encode_float_infinity(self):
+        start = float('inf')
+        expected = '<Infinity>'
+        self._assertSerialized(start, expected, skip_id_check=True)
+
+    def test_encode_float_neg_infinity(self):
+        start = float('-inf')
+        expected = '<NegativeInfinity>'
+        self._assertSerialized(start, expected, skip_id_check=True)
+
     def test_encode_int(self):
         start = 33
         expected = 33
         self._assertSerialized(start, expected, skip_id_check=True)
-
-    def test_encode_NaN(self):
-        start = float('nan')
-
-        serializable = SerializableTransform()
-        result = transforms.transform(start, [serializable])
-
-        self.assertTrue(math.isnan(result))
-
-    def test_encode_Infinity(self):
-        start = float('inf')
-
-        serializable = SerializableTransform()
-        result = transforms.transform(start, [serializable])
-
-        self.assertTrue(math.isinf(result))
 
     def test_encode_empty_tuple(self):
         start = ()
@@ -190,7 +225,7 @@ class SerializableTransformTest(BaseTest):
         start = {'hello': 'world', 'custom': CustomRepr()}
 
         serializable = SerializableTransform(whitelist_types=[CustomRepr])
-        result = transforms.transform(start, [serializable])
+        result = transforms.transform(start, serializable)
 
         if python_major_version() < 3:
             self.assertEqual(result['custom'], b'hello')
@@ -205,7 +240,7 @@ class SerializableTransformTest(BaseTest):
         start = {'hello': 'world', 'custom': CustomRepr()}
 
         serializable = SerializableTransform(whitelist_types=[CustomRepr])
-        result = transforms.transform(start, [serializable])
+        result = transforms.transform(start, serializable)
         self.assertRegex(result['custom'], "<class '.*CustomRepr'>")
 
     def test_encode_with_custom_repr_returns_unicode(self):
@@ -218,3 +253,28 @@ class SerializableTransformTest(BaseTest):
         expected['custom'] = SNOWMAN
         self._assertSerialized(start, expected, whitelist=[CustomRepr])
 
+    def test_encode_with_bad_repr_doesnt_die(self):
+        class CustomRepr(object):
+            def __repr__(self):
+                assert False
+
+        start = {'hello': 'world', 'custom': CustomRepr()}
+        serializable = SerializableTransform(whitelist_types=[CustomRepr])
+        result = transforms.transform(start, serializable)
+        self.assertRegex(result['custom'], "<AssertionError.*CustomRepr.*>")
+
+    def test_encode_with_bad_str_doesnt_die(self):
+
+        class UnStringableException(Exception):
+            def __str__(self):
+                raise Exception('asdf')
+
+        class CustomRepr(object):
+
+            def __repr__(self):
+                raise UnStringableException()
+
+        start = {'hello': 'world', 'custom': CustomRepr()}
+        serializable = SerializableTransform(whitelist_types=[CustomRepr])
+        result = transforms.transform(start, serializable)
+        self.assertRegex(result['custom'], "<UnStringableException.*Exception.*str.*>")
